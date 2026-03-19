@@ -1,0 +1,780 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Palm Cards Maker</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #f5f2eb;
+    --surface: #fdfaf4;
+    --ink: #1a1a18;
+    --ink-mid: #5a5a54;
+    --ink-light: #9a9a90;
+    --accent: #c84b2f;
+    --accent-light: #f5e8e4;
+    --border: #d8d4c8;
+  }
+
+  body {
+    font-family: 'IBM Plex Sans', sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  header {
+    padding: 1.4rem 2rem;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: baseline;
+    gap: 1rem;
+  }
+  header h1 {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 1.05rem;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+  }
+  header span {
+    font-size: 0.72rem;
+    color: var(--ink-light);
+    font-family: 'IBM Plex Mono', monospace;
+  }
+
+  .workspace {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 272px 1fr;
+    min-height: 0;
+  }
+
+  .sidebar {
+    border-right: 1px solid var(--border);
+    padding: 1.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+    background: var(--surface);
+    overflow-y: auto;
+  }
+
+  .drop-zone {
+    border: 1.5px dashed var(--border);
+    border-radius: 6px;
+    padding: 1.5rem 1rem;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.15s;
+    background: var(--bg);
+  }
+  .drop-zone:hover, .drop-zone.drag-over {
+    border-color: var(--accent);
+    background: var(--accent-light);
+  }
+  .drop-zone .icon { font-size: 1.6rem; margin-bottom: 0.4rem; display: block; }
+  .drop-zone p { font-size: 0.76rem; color: var(--ink-mid); line-height: 1.5; }
+  .drop-zone strong { font-family: 'IBM Plex Mono', monospace; font-size: 0.7rem; color: var(--accent); }
+  #file-input { display: none; }
+
+  .section-label {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.62rem;
+    font-weight: 600;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--ink-light);
+    margin-bottom: 0.45rem;
+  }
+
+  .control-group { display: flex; flex-direction: column; gap: 0.6rem; }
+
+  .control-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+  }
+  .control-row label { font-size: 0.78rem; color: var(--ink-mid); flex: 1; }
+
+  .control-row input[type="number"] {
+    width: 60px;
+    padding: 0.28rem 0.45rem;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.78rem;
+    background: var(--bg);
+    color: var(--ink);
+    text-align: right;
+  }
+  .control-row input[type="number"]:focus { outline: none; border-color: var(--accent); }
+
+  select {
+    width: 100%;
+    padding: 0.35rem 0.55rem;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 0.78rem;
+    background: var(--bg);
+    color: var(--ink);
+    cursor: pointer;
+  }
+  select:focus { outline: none; border-color: var(--accent); }
+
+  .toggle-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+  }
+  .toggle-row label.tog-label { font-size: 0.78rem; color: var(--ink-mid); flex: 1; }
+  .toggle {
+    position: relative;
+    width: 32px;
+    height: 18px;
+    flex-shrink: 0;
+  }
+  .toggle input { opacity: 0; width: 0; height: 0; position: absolute; }
+  .toggle-track {
+    position: absolute;
+    inset: 0;
+    background: var(--border);
+    border-radius: 18px;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  .toggle input:checked + .toggle-track { background: var(--accent); }
+  .toggle-track::after {
+    content: '';
+    position: absolute;
+    width: 12px; height: 12px;
+    background: white;
+    border-radius: 50%;
+    top: 3px; left: 3px;
+    transition: transform 0.15s;
+  }
+  .toggle input:checked + .toggle-track::after { transform: translateX(14px); }
+
+  .card-list {
+    flex: 1;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    min-height: 60px;
+  }
+  .card-item {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 0.45rem 0.55rem;
+    font-size: 0.7rem;
+    color: var(--ink-mid);
+    display: flex;
+    gap: 0.45rem;
+    align-items: flex-start;
+  }
+  .card-item .num {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.62rem;
+    color: var(--accent);
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+  .card-item .text {
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    line-height: 1.4;
+  }
+  .card-item.merged { border-left: 2px solid #b8a070; }
+
+  .btn-print {
+    width: 100%;
+    padding: 0.6rem 1rem;
+    background: var(--accent);
+    color: white;
+    border: none;
+    border-radius: 5px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.78rem;
+    font-weight: 500;
+    cursor: pointer;
+    letter-spacing: 0.03em;
+    transition: opacity 0.15s;
+  }
+  .btn-print:hover { opacity: 0.87; }
+  .btn-print:disabled { opacity: 0.38; cursor: not-allowed; }
+
+  .preview-area {
+    padding: 2rem;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    background: var(--bg);
+  }
+
+  .empty-state {
+    margin: auto;
+    text-align: center;
+    color: var(--ink-light);
+  }
+  .empty-state .big { font-size: 2.8rem; margin-bottom: 1rem; opacity: 0.35; }
+  .empty-state p { font-size: 0.82rem; line-height: 1.65; }
+
+  .preview-label {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.62rem;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--ink-light);
+    margin-bottom: 1rem;
+    align-self: flex-start;
+  }
+
+  .page-preview {
+    background: white;
+    box-shadow: 0 2px 14px rgba(0,0,0,0.09);
+    margin-bottom: 1.5rem;
+    flex-shrink: 0;
+  }
+
+  .slider-row { display: flex; flex-direction: column; gap: 0.3rem; }
+  .slider-row-top { display: flex; align-items: center; justify-content: space-between; }
+  .slider-row-top label { font-size: 0.78rem; color: var(--ink-mid); }
+  .slider-row-top span {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.72rem; color: var(--accent);
+    min-width: 3ch; text-align: right;
+  }
+  .slider-row input[type="range"] {
+    width: 100%; accent-color: var(--accent); cursor: pointer; height: 3px;
+  }
+  .slider-ends {
+    display: flex; justify-content: space-between;
+    font-size: 0.6rem; color: var(--ink-light);
+    font-family: 'IBM Plex Mono', monospace;
+  }
+
+  #size-probe {
+    position: fixed;
+    visibility: hidden;
+    pointer-events: none;
+    top: -9999px;
+    left: -9999px;
+    white-space: pre-wrap;
+    word-break: break-word;
+    font-family: 'IBM Plex Sans', sans-serif;
+    line-height: 1.45;
+  }
+
+  @media print {
+    body { background: white; }
+    header, .sidebar, .preview-label, .empty-state { display: none !important; }
+    .workspace { display: block; }
+    .preview-area { padding: 0; display: block; overflow: visible; background: white; }
+    .page-preview { display: none !important; }
+    #print-pages { display: block !important; }
+    #size-probe { display: none !important; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Palm Cards Maker</h1>
+  <span>drop .md → print → cut</span>
+</header>
+
+<div class="workspace">
+  <div class="sidebar">
+
+    <div>
+      <div class="section-label">Source File</div>
+      <div class="drop-zone" id="drop-zone">
+        <span class="icon">📄</span>
+        <p>Drop your <strong>.md file</strong> here<br>or click to browse</p>
+      </div>
+      <input type="file" id="file-input" accept=".md,.txt">
+    </div>
+
+    <div class="control-group">
+      <div class="section-label">Card Size</div>
+      <div class="control-row">
+        <label>Width (mm)</label>
+        <input type="number" id="card-w" value="90" min="40" max="200">
+      </div>
+      <div class="control-row">
+        <label>Height (mm)</label>
+        <input type="number" id="card-h" value="65" min="30" max="180">
+      </div>
+    </div>
+
+    <div class="control-group">
+      <div class="section-label">Text</div>
+      <div class="toggle-row">
+        <label class="tog-label">Auto-size font to fit</label>
+        <label class="toggle">
+          <input type="checkbox" id="auto-font" checked>
+          <div class="toggle-track"></div>
+        </label>
+      </div>
+      <div class="control-row" id="font-size-row" style="opacity:0.4">
+        <label>Font size (pt)</label>
+        <input type="number" id="font-size" value="10" min="5" max="28" disabled>
+      </div>
+      <div class="slider-row" id="sensitivity-row">
+        <div class="slider-row-top">
+          <label>Fit sensitivity</label>
+          <span id="sensitivity-val">75%</span>
+        </div>
+        <input type="range" id="sensitivity" min="50" max="100" value="75" step="1">
+        <div class="slider-ends"><span>conservative</span><span>aggressive</span></div>
+      </div>
+      <div class="control-row">
+        <label>Card numbers</label>
+        <select id="show-num">
+          <option value="1">Show</option>
+          <option value="0">Hide</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="control-group">
+      <div class="section-label">Merging</div>
+      <div class="control-row">
+        <label>Merge if under (words)</label>
+        <input type="number" id="merge-thresh" value="20" min="0" max="200">
+      </div>
+      <div class="control-row">
+        <label>Max words after merge</label>
+        <input type="number" id="merge-max" value="80" min="10" max="300">
+      </div>
+    </div>
+
+    <div style="flex:1; min-height:0; display:flex; flex-direction:column;">
+      <div class="section-label">Cards (<span id="card-count">0</span>)</div>
+      <div class="card-list" id="card-list"></div>
+    </div>
+
+    <button class="btn-print" id="btn-print" disabled onclick="window.print()">
+      ⎙ Print / Save PDF
+    </button>
+
+  </div>
+
+  <div class="preview-area" id="preview-area">
+    <div class="empty-state" id="empty-state">
+      <div class="big">✦</div>
+      <p>Drop a markdown file to get started.<br>Your palm cards will appear here.</p>
+    </div>
+  </div>
+</div>
+
+<div id="size-probe"></div>
+
+<script>
+  const dropZone     = document.getElementById('drop-zone');
+  const fileInput    = document.getElementById('file-input');
+  const previewArea  = document.getElementById('preview-area');
+  const emptyState   = document.getElementById('empty-state');
+  const cardList     = document.getElementById('card-list');
+  const cardCount    = document.getElementById('card-count');
+  const btnPrint     = document.getElementById('btn-print');
+  const autoFontCb   = document.getElementById('auto-font');
+  const fontSizeEl   = document.getElementById('font-size');
+  const fontSizeRow  = document.getElementById('font-size-row');
+  const sensitivityEl = document.getElementById('sensitivity');
+  const sensitivityVal = document.getElementById('sensitivity-val');
+  const probe        = document.getElementById('size-probe');
+
+  let rawSections = [];
+  let cards = [];
+
+  // ── Event wiring ────────────────────────────────────────────────
+  dropZone.addEventListener('click', () => fileInput.click());
+  dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+  dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+  dropZone.addEventListener('drop', e => {
+    e.preventDefault();
+    dropZone.classList.remove('drag-over');
+    const f = e.dataTransfer.files[0];
+    if (f) readFile(f);
+  });
+  fileInput.addEventListener('change', e => { if (e.target.files[0]) readFile(e.target.files[0]); });
+
+  autoFontCb.addEventListener('change', () => {
+    const auto = autoFontCb.checked;
+    fontSizeEl.disabled = auto;
+    fontSizeRow.style.opacity = auto ? '0.4' : '1';
+    document.getElementById('sensitivity-row').style.opacity = auto ? '1' : '0.4';
+    if (cards.length) render();
+  });
+
+  sensitivityEl.addEventListener('input', () => {
+    sensitivityVal.textContent = sensitivityEl.value + '%';
+    if (cards.length) render();
+  });
+
+  ['card-w','card-h','font-size','show-num','merge-thresh','merge-max'].forEach(id => {
+    document.getElementById(id).addEventListener('input', () => {
+      if (rawSections.length) {
+        cards = mergeCards(rawSections);
+        updateCardList();
+        render();
+      }
+    });
+  });
+
+  // ── File reading ─────────────────────────────────────────────────
+  function readFile(file) {
+    const reader = new FileReader();
+    reader.onload = e => processMarkdown(e.target.result);
+    reader.readAsText(file);
+  }
+
+  // ── Parse markdown into raw sections ────────────────────────────
+  function processMarkdown(raw) {
+    const lines = raw.split('\n');
+    const sections = [];
+    let current = [];
+
+    for (const line of lines) {
+      const trimmed = line.trim();
+
+      if (/^#{1,6}\s/.test(trimmed)) {
+        if (current.length > 0) {
+          const t = current.join('\n').trim();
+          if (t) sections.push(t);
+          current = [];
+        }
+        current.push(trimmed.replace(/^#{1,6}\s+/, '').toUpperCase());
+        continue;
+      }
+
+      if (trimmed === '') {
+        if (current.length > 0) {
+          const t = current.join('\n').trim();
+          if (t) sections.push(t);
+          current = [];
+        }
+        continue;
+      }
+
+      current.push(trimmed);
+    }
+
+    if (current.length > 0) {
+      const t = current.join('\n').trim();
+      if (t) sections.push(t);
+    }
+
+    rawSections = sections.map(cleanMarkdown);
+    cards = mergeCards(rawSections);
+    updateCardList();
+    render();
+    btnPrint.disabled = false;
+  }
+
+  // ── Merge short paragraphs ───────────────────────────────────────
+  function wordCount(s) {
+    return s.trim().split(/\s+/).filter(Boolean).length;
+  }
+
+  function mergeCards(sections) {
+    const thresh = parseInt(document.getElementById('merge-thresh').value) || 0;
+    const maxW   = parseInt(document.getElementById('merge-max').value) || 9999;
+    if (thresh === 0) return sections.map(s => ({ text: s, merged: false }));
+
+    // Forward pass: greedily merge short section with next
+    const pass1 = [];
+    let i = 0;
+    while (i < sections.length) {
+      const s = sections[i];
+      if (wordCount(s) < thresh && i + 1 < sections.length) {
+        const combined = s + '\n\n' + sections[i + 1];
+        if (wordCount(combined) <= maxW) {
+          pass1.push({ text: combined, merged: true });
+          i += 2;
+          continue;
+        }
+      }
+      pass1.push({ text: s, merged: false });
+      i++;
+    }
+
+    // Backward pass: if tail is still short, fold into previous
+    const out = [];
+    for (let j = 0; j < pass1.length; j++) {
+      const item = pass1[j];
+      if (
+        wordCount(item.text) < thresh &&
+        out.length > 0 &&
+        wordCount(out[out.length - 1].text + '\n\n' + item.text) <= maxW
+      ) {
+        out[out.length - 1].text += '\n\n' + item.text;
+        out[out.length - 1].merged = true;
+      } else {
+        out.push({ text: item.text, merged: item.merged });
+      }
+    }
+
+    return out;
+  }
+
+  // ── Sidebar card list ────────────────────────────────────────────
+  function updateCardList() {
+    cardCount.textContent = cards.length;
+    cardList.innerHTML = '';
+    cards.forEach((c, i) => {
+      const el = document.createElement('div');
+      el.className = 'card-item' + (c.merged ? ' merged' : '');
+      el.innerHTML = `<span class="num">${String(i+1).padStart(2,'0')}</span><span class="text">${escHtml(c.text)}</span>`;
+      cardList.appendChild(el);
+    });
+  }
+
+  // ── Inline markdown cleanup ──────────────────────────────────────
+  function cleanMarkdown(text) {
+    return text
+      .replace(/\*\*(.+?)\*\*/gs, '$1')
+      .replace(/\*(.+?)\*/gs, '$1')
+      .replace(/__(.+?)__/gs, '$1')
+      .replace(/_(.+?)_/gs, '$1')
+      .replace(/`(.+?)`/gs, '$1')
+      .replace(/\[(.+?)\]\(.+?\)/g, '$1')
+      .replace(/^[-*+]\s+/gm, '• ')
+      .replace(/^\d+\.\s+/gm, '')
+      .replace(/^>\s+/gm, '')
+      .trim();
+  }
+
+  function escHtml(s) {
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  // ── Auto font sizing (binary search via off-screen probe) ────────
+  // wPx, hPx = available text area in screen pixels
+  function fitFontSize(text, wPx, hPx) {
+    probe.style.width = wPx + 'px';
+    probe.style.lineHeight = '1.45';
+    probe.textContent = text;
+
+    let lo = 5, hi = 28, best = 5;
+    for (let iter = 0; iter < 12; iter++) {
+      const mid = (lo + hi) / 2;
+      probe.style.fontSize = mid + 'pt';
+      const naturalH = probe.scrollHeight;
+      if (naturalH <= hPx) {
+        best = mid;
+        lo = mid + 0.4;
+      } else {
+        hi = mid - 0.4;
+      }
+      if (hi - lo < 0.3) break;
+    }
+    return Math.max(5, Math.floor(best * 10) / 10);
+  }
+
+  // ── Main render ──────────────────────────────────────────────────
+  function render() {
+    const cardW    = parseFloat(document.getElementById('card-w').value) || 90;
+    const cardH    = parseFloat(document.getElementById('card-h').value) || 65;
+    const autoFont = autoFontCb.checked;
+    const manualPt = parseFloat(fontSizeEl.value) || 10;
+    const showNum  = document.getElementById('show-num').value === '1';
+
+    const pageW = 210, pageH = 297, margin = 10, gap = 3;
+    const cols = 2;
+    const rowsPerPage = Math.max(1, Math.floor((pageH - margin * 2 + gap) / (cardH + gap)));
+    const cardsPerPage = cols * rowsPerPage;
+    const pageCount = Math.ceil(cards.length / cardsPerPage);
+
+    const SCALE = 2.7;        // screen px per mm
+    const PAD_MM = 5;
+    const padPx = PAD_MM * SCALE;
+
+    // Compute per-card font sizes
+    const fontSizes = [];
+    if (autoFont) {
+      const sensitivity = parseFloat(sensitivityEl.value) / 100; // 0.5–1.0
+      // Estimate num-row height: use 10pt * 0.65 as ballpark for label
+      const numRowPx = showNum ? (10 * 0.65 * SCALE / 3 + 3 * SCALE / 3) : 0;
+      const textWPx = (cardW * SCALE - padPx * 2) * sensitivity;
+      const textHPx = (cardH * SCALE - padPx * 2 - numRowPx) * sensitivity;
+      cards.forEach(c => fontSizes.push(fitFontSize(c.text, textWPx, textHPx)));
+    } else {
+      cards.forEach(() => fontSizes.push(manualPt));
+    }
+
+    // Wipe old preview
+    previewArea.querySelectorAll('.page-preview, .preview-label').forEach(el => el.remove());
+    emptyState.style.display = 'none';
+
+    const label = document.createElement('div');
+    label.className = 'preview-label';
+    label.textContent = `Preview — ${pageCount} page${pageCount !== 1 ? 's' : ''}, ${cards.length} card${cards.length !== 1 ? 's' : ''}`;
+    previewArea.insertBefore(label, previewArea.firstChild);
+
+    for (let p = 0; p < pageCount; p++) {
+      const pw = pageW * SCALE, ph = pageH * SCALE;
+
+      const page = document.createElement('div');
+      page.className = 'page-preview';
+      page.style.cssText = `width:${pw}px; height:${ph}px; position:relative; overflow:hidden;`;
+
+      // SVG cut guides
+      const svg = document.createElementNS('http://www.w3.org/2000/svg','svg');
+      svg.setAttribute('width', pw); svg.setAttribute('height', ph);
+      svg.style.cssText = 'position:absolute;top:0;left:0;pointer-events:none;z-index:1;';
+      for (let r = 0; r < rowsPerPage; r++) {
+        for (let c = 0; c < cols; c++) {
+          const ci = p * cardsPerPage + r * cols + c;
+          if (ci >= cards.length) continue;
+          const x = (margin + c * (cardW + gap)) * SCALE;
+          const y = (margin + r * (cardH + gap)) * SCALE;
+          const rect = document.createElementNS('http://www.w3.org/2000/svg','rect');
+          rect.setAttribute('x', x); rect.setAttribute('y', y);
+          rect.setAttribute('width', cardW * SCALE); rect.setAttribute('height', cardH * SCALE);
+          rect.setAttribute('fill','none'); rect.setAttribute('stroke','#ccc');
+          rect.setAttribute('stroke-width','0.6'); rect.setAttribute('stroke-dasharray','4 3');
+          svg.appendChild(rect);
+        }
+      }
+      page.appendChild(svg);
+
+      // Card divs
+      for (let r = 0; r < rowsPerPage; r++) {
+        for (let c = 0; c < cols; c++) {
+          const idx = r * cols + c;
+          const ci  = p * cardsPerPage + idx;
+          if (ci >= cards.length) continue;
+
+          const x    = (margin + c * (cardW + gap)) * SCALE;
+          const y    = (margin + r * (cardH + gap)) * SCALE;
+          const fsPx = fontSizes[ci] * SCALE / 3;
+
+          const card = document.createElement('div');
+          card.style.cssText = `
+            position:absolute; left:${x}px; top:${y}px;
+            width:${cardW*SCALE}px; height:${cardH*SCALE}px;
+            background:white; padding:${padPx}px;
+            overflow:hidden; display:flex; flex-direction:column;
+          `;
+
+          if (showNum) {
+            const num = document.createElement('div');
+            num.style.cssText = `font-family:'IBM Plex Mono',monospace; font-size:${fsPx*0.65}px;
+              color:#c84b2f; margin-bottom:${2*SCALE/3}px; flex-shrink:0; letter-spacing:0.05em;`;
+            num.textContent = String(ci + 1).padStart(2, '0');
+            card.appendChild(num);
+          }
+
+          const text = document.createElement('div');
+          text.style.cssText = `font-family:'IBM Plex Sans',sans-serif; font-size:${fsPx}px;
+            line-height:1.45; color:#1a1a18; overflow:hidden; flex:1;
+            white-space:pre-wrap; word-break:break-word;`;
+          text.textContent = cards[ci].text;
+          card.appendChild(text);
+          page.appendChild(card);
+        }
+      }
+
+      previewArea.appendChild(page);
+    }
+
+    buildPrintDOM(cardW, cardH, fontSizes, showNum, cols, rowsPerPage, margin, gap, pageCount, cardsPerPage);
+  }
+
+  // ── Build hidden print DOM (mm-based, no scaling) ────────────────
+  function buildPrintDOM(cardW, cardH, fontSizes, showNum, cols, rowsPerPage, margin, gap, pageCount, cardsPerPage) {
+    let printPages = document.getElementById('print-pages');
+    if (printPages) printPages.remove();
+    printPages = document.createElement('div');
+    printPages.id = 'print-pages';
+    printPages.style.display = 'none';
+    document.body.appendChild(printPages);
+
+    for (let p = 0; p < pageCount; p++) {
+      const pageDiv = document.createElement('div');
+      pageDiv.className = 'print-page';
+
+      for (let r = 0; r < rowsPerPage; r++) {
+        for (let c = 0; c < cols; c++) {
+          const idx = r * cols + c;
+          const ci  = p * cardsPerPage + idx;
+          if (ci >= cards.length) continue;
+
+          const x = margin + c * (cardW + gap);
+          const y = margin + r * (cardH + gap);
+
+          const card = document.createElement('div');
+          card.className = 'print-card';
+          card.style.cssText = `left:${x}mm; top:${y}mm; width:${cardW}mm; height:${cardH}mm; font-size:${fontSizes[ci]}pt;`;
+
+          if (showNum) {
+            const num = document.createElement('div');
+            num.className = 'print-card-num';
+            num.textContent = String(ci + 1).padStart(2, '0');
+            card.appendChild(num);
+          }
+
+          const text = document.createElement('div');
+          text.className = 'print-card-text';
+          text.textContent = cards[ci].text;
+          card.appendChild(text);
+
+          pageDiv.appendChild(card);
+        }
+      }
+      printPages.appendChild(pageDiv);
+    }
+
+    // Dynamic print CSS
+    let styleEl = document.getElementById('dynamic-print-css');
+    if (!styleEl) {
+      styleEl = document.createElement('style');
+      styleEl.id = 'dynamic-print-css';
+      document.head.appendChild(styleEl);
+    }
+    styleEl.textContent = `
+      @media print {
+        @page { size: A4; margin: 0; }
+        #print-pages { display: block !important; }
+        .print-page {
+          display: block; width: 210mm; height: 297mm;
+          position: relative; overflow: hidden;
+          background: white; page-break-after: always;
+        }
+        .print-page:last-child { page-break-after: avoid; }
+        .print-card {
+          position: absolute; background: white; padding: 5mm;
+          overflow: hidden; box-sizing: border-box;
+          border: 0.25mm dashed #aaa;
+          display: flex; flex-direction: column;
+        }
+        .print-card-num {
+          font-family: 'IBM Plex Mono', monospace; font-size: 0.65em;
+          color: #c84b2f; margin-bottom: 1.5mm; flex-shrink: 0; letter-spacing: 0.05em;
+        }
+        .print-card-text {
+          font-family: 'IBM Plex Sans', sans-serif; line-height: 1.45;
+          color: #111; overflow: hidden; flex: 1;
+          white-space: pre-wrap; word-break: break-word;
+        }
+      }
+    `;
+  }
+</script>
+</body>
+</html>
