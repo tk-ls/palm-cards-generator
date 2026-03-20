@@ -4,6 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Palm Cards Maker</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500&display=swap');
 
@@ -449,6 +451,7 @@
         <button class="toolbar-btn" onclick="loadFileFromEditor()">📂 open file</button>
         <button class="toolbar-btn" onclick="clearEditor()">clear</button>
         <button class="toolbar-btn" id="btn-print-editor" disabled onclick="window.print()" style="background:var(--accent);color:white;border-color:var(--accent)">⎙ print</button>
+        <button class="toolbar-btn" id="btn-kindle" disabled onclick="exportKindle()" style="background:#1a1a18;color:white;border-color:#1a1a18">📱 kindle</button>
       </div>
     </div>
     <textarea id="script-editor" spellcheck="true" placeholder="Write your speech here using Markdown...
@@ -532,6 +535,9 @@ Another paragraph becomes the next card.
       <button class="btn-print" id="btn-print" disabled onclick="window.print()">
         ⎙ Print / Save PDF
       </button>
+      <button class="btn-print" id="btn-kindle-settings" disabled onclick="exportKindle()" style="background:#1a1a18; margin-top:-0.5rem">
+        📱 Export for Kindle
+      </button>
 
     </div>
   </div>
@@ -590,6 +596,8 @@ Another paragraph becomes the next card.
     emptyState.style.display = '';
     btnPrint.disabled = true;
     document.getElementById('btn-print-editor').disabled = true;
+    document.getElementById('btn-kindle').disabled = true;
+    document.getElementById('btn-kindle-settings').disabled = true;
   }
 
   // ── Event wiring ────────────────────────────────────────────────
@@ -688,6 +696,8 @@ Another paragraph becomes the next card.
     render();
     btnPrint.disabled = false;
     document.getElementById('btn-print-editor').disabled = false;
+    document.getElementById('btn-kindle').disabled = false;
+    document.getElementById('btn-kindle-settings').disabled = false;
   }
 
   // ── Merge short paragraphs ───────────────────────────────────────
@@ -1092,6 +1102,95 @@ Another paragraph becomes the next card.
         .card-md br { display: block; content: ''; margin-top: 0.4em; }
       }
     `;
+  }
+
+  // ── Kindle export ────────────────────────────────────────────────
+  // Paperwhite 10 landscape: 1448 × 1072 px
+  const KW = 1448, KH = 1072, K_PAD = 64;
+
+  async function exportKindle() {
+    if (!cards.length) return;
+
+    const btns = [document.getElementById('btn-kindle'), document.getElementById('btn-kindle-settings')];
+    btns.forEach(b => { b.disabled = true; });
+
+    const showNum  = document.getElementById('show-num').value === '1';
+    const autoFont = autoFontCb.checked;
+    const manualPt = parseFloat(fontSizeEl.value) || 10;
+    const sensitivity = parseFloat(sensitivityEl.value) / 100;
+
+    // Off-screen render container
+    const container = document.createElement('div');
+    container.style.cssText = `position:fixed;top:-9999px;left:-9999px;width:${KW}px;height:${KH}px;background:white;overflow:hidden;`;
+    document.body.appendChild(container);
+
+    const { jsPDF } = window.jspdf;
+    // jsPDF in px mode: 1px = 1 unit
+    const pdf = new jsPDF({ orientation: 'landscape', unit: 'px', format: [KW, KH], compress: true });
+    let first = true;
+
+    for (let ci = 0; ci < cards.length; ci++) {
+      btns.forEach(b => { b.textContent = `⏳ ${ci + 1} / ${cards.length}`; });
+      await new Promise(r => setTimeout(r, 0)); // yield so the label updates
+
+      // Font size: run the probe at Kindle scale
+      let fsPx;
+      const numRowPx = showNum ? 40 : 0;
+      const availW = KW - K_PAD * 2;
+      const availH = KH - K_PAD * 2 - numRowPx;
+      if (autoFont) {
+        const fitPt = fitFontSize(cards[ci].html, availW * sensitivity, availH * sensitivity, 1.0);
+        // fitFontSize returns pt; convert to px (96 dpi screen)
+        fsPx = fitPt * (4 / 3);
+      } else {
+        fsPx = manualPt * (4 / 3) * (availW / (90 * 2.7 - K_PAD * 2));
+      }
+      fsPx = Math.max(20, Math.min(fsPx, 140));
+
+      // Build card
+      container.innerHTML = '';
+      const card = document.createElement('div');
+      card.style.cssText = `
+        width:${KW}px; height:${KH}px; background:white;
+        padding:${K_PAD}px; box-sizing:border-box;
+        display:flex; flex-direction:column;
+        font-family:'IBM Plex Sans',sans-serif;
+      `;
+
+      if (showNum) {
+        const num = document.createElement('div');
+        num.style.cssText = `
+          font-family:'IBM Plex Mono',monospace;
+          font-size:${Math.round(fsPx * 0.6)}px;
+          color:#c84b2f; margin-bottom:12px; flex-shrink:0; letter-spacing:0.05em;
+        `;
+        num.textContent = String(ci + 1).padStart(2, '0');
+        card.appendChild(num);
+      }
+
+      const textDiv = document.createElement('div');
+      textDiv.className = 'card-md';
+      textDiv.style.cssText = `font-size:${fsPx}px; line-height:1.45; color:#111; overflow:hidden; flex:1; word-break:break-word;`;
+      textDiv.innerHTML = cards[ci].html;
+      card.appendChild(textDiv);
+      container.appendChild(card);
+
+      await document.fonts.ready;
+
+      const canvas = await html2canvas(container, {
+        width: KW, height: KH, scale: 1,
+        useCORS: true, backgroundColor: '#ffffff', logging: false,
+      });
+
+      if (!first) pdf.addPage([KW, KH], 'landscape');
+      pdf.addImage(canvas.toDataURL('image/jpeg', 0.93), 'JPEG', 0, 0, KW, KH);
+      first = false;
+    }
+
+    document.body.removeChild(container);
+    pdf.save('palm-cards-kindle.pdf');
+
+    btns.forEach(b => { b.disabled = false; b.textContent = b.id === 'btn-kindle' ? '📱 kindle' : '📱 Export for Kindle'; });
   }
 </script>
 </body>
