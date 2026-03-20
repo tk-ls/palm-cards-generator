@@ -3,510 +3,446 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Palm Cards Maker</title>
+<title>Palm Cards</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500&display=swap');
 
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-  :root {
-    --bg: #f5f2eb;
-    --surface: #fdfaf4;
-    --ink: #1a1a18;
-    --ink-mid: #5a5a54;
-    --ink-light: #9a9a90;
-    --accent: #c84b2f;
-    --accent-light: #f5e8e4;
-    --border: #d8d4c8;
-  }
+:root {
+  --bg: #f0ece3;
+  --surface: #f8f5ee;
+  --ink: #1c1b18;
+  --ink-mid: #5c5a52;
+  --ink-light: #a8a498;
+  --accent: #c84b2f;
+  --accent-bg: #f5e8e4;
+  --border: #ddd9cc;
+  --panel: 300px;
+}
 
-  body {
-    font-family: 'IBM Plex Sans', sans-serif;
-    background: var(--bg);
-    color: var(--ink);
-    min-height: 100vh;
-    display: flex;
-    flex-direction: column;
-  }
+html, body {
+  height: 100%;
+  font-family: 'IBM Plex Sans', sans-serif;
+  background: var(--bg);
+  color: var(--ink);
+  overflow: hidden;
+}
 
-  header {
-    padding: 1.4rem 2rem;
-    border-bottom: 1px solid var(--border);
-    display: flex;
-    align-items: baseline;
-    gap: 1rem;
-  }
-  header h1 {
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 1.05rem;
-    font-weight: 600;
-    letter-spacing: -0.02em;
-  }
-  header span {
-    font-size: 0.72rem;
-    color: var(--ink-light);
-    font-family: 'IBM Plex Mono', monospace;
-  }
+/* ── Layout ─────────────────────────────────────────────── */
+.app {
+  display: grid;
+  grid-template-rows: 44px 1fr;
+  grid-template-columns: var(--panel) 1fr;
+  height: 100vh;
+}
 
-  .workspace {
-    flex: 1;
-    display: grid;
-    grid-template-columns: 40px 300px 1fr;
-    min-height: 0;
-    overflow: hidden;
-  }
+/* ── Topbar ─────────────────────────────────────────────── */
+.topbar {
+  grid-column: 1 / -1;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  padding: 0 1rem;
+  gap: 0;
+}
 
-  /* ── Tab bar ── */
-  .tab-bar {
-    border-right: 1px solid var(--border);
-    background: var(--surface);
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    padding: 0.75rem 0;
-    gap: 0.25rem;
-  }
-  .tab-btn {
-    width: 32px;
-    height: 32px;
-    border: none;
-    background: none;
-    border-radius: 6px;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 1rem;
-    color: var(--ink-light);
-    transition: background 0.12s, color 0.12s;
-    position: relative;
-  }
-  .tab-btn:hover { background: var(--bg); color: var(--ink-mid); }
-  .tab-btn.active { background: var(--accent-light); color: var(--accent); }
+.topbar-title {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--ink);
+  margin-right: 1.5rem;
+  flex-shrink: 0;
+}
 
-  /* ── Panels ── */
-  .panel {
-    border-right: 1px solid var(--border);
-    background: var(--surface);
-    display: none;
-    flex-direction: column;
-    overflow: hidden;
-  }
-  .panel.active { display: flex; }
+.tab-group {
+  display: flex;
+  gap: 0;
+  height: 100%;
+  align-items: stretch;
+}
 
-  .panel-inner {
-    flex: 1;
-    overflow-y: auto;
-    padding: 1.25rem;
-    display: flex;
-    flex-direction: column;
-    gap: 1.25rem;
-  }
+.tab {
+  padding: 0 1rem;
+  border: none;
+  background: none;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.68rem;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ink-light);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: color 0.12s, border-color 0.12s;
+  flex-shrink: 0;
+}
+.tab:hover { color: var(--ink-mid); }
+.tab.active { color: var(--accent); border-bottom-color: var(--accent); }
 
-  /* ── Editor panel ── */
-  #editor-panel .panel-inner {
-    padding: 0;
-    gap: 0;
-  }
+.topbar-spacer { flex: 1; }
 
-  .editor-toolbar {
-    padding: 0.6rem 0.9rem;
-    border-bottom: 1px solid var(--border);
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    flex-shrink: 0;
-  }
-  .editor-toolbar span {
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 0.62rem;
-    font-weight: 600;
-    letter-spacing: 0.09em;
-    text-transform: uppercase;
-    color: var(--ink-light);
-  }
-  .editor-toolbar-right {
-    display: flex;
-    gap: 0.4rem;
-    align-items: center;
-  }
-  .toolbar-btn {
-    padding: 0.2rem 0.5rem;
-    border: 1px solid var(--border);
-    border-radius: 4px;
-    background: var(--bg);
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 0.62rem;
-    color: var(--ink-mid);
-    cursor: pointer;
-    transition: all 0.12s;
-  }
-  .toolbar-btn:hover { border-color: var(--accent); color: var(--accent); }
+.topbar-actions {
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+}
 
-  #script-editor {
-    flex: 1;
-    width: 100%;
-    padding: 1rem;
-    border: none;
-    outline: none;
-    resize: none;
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 0.78rem;
-    line-height: 1.6;
-    color: var(--ink);
-    background: var(--surface);
-    tab-size: 2;
-  }
-  #script-editor::placeholder { color: var(--ink-light); }
+.action-btn {
+  padding: 0.3rem 0.75rem;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.65rem;
+  font-weight: 500;
+  color: var(--ink-mid);
+  cursor: pointer;
+  transition: all 0.12s;
+  white-space: nowrap;
+}
+.action-btn:hover:not(:disabled) { border-color: var(--ink-mid); color: var(--ink); }
+.action-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+.action-btn.primary { background: var(--accent); border-color: var(--accent); color: white; }
+.action-btn.primary:hover:not(:disabled) { opacity: 0.88; }
+.action-btn.dark { background: var(--ink); border-color: var(--ink); color: white; }
+.action-btn.dark:hover:not(:disabled) { opacity: 0.82; }
 
-  .section-label {
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 0.62rem;
-    font-weight: 600;
-    letter-spacing: 0.09em;
-    text-transform: uppercase;
-    color: var(--ink-light);
-    margin-bottom: 0.45rem;
-  }
+/* ── Left panel ─────────────────────────────────────────── */
+.left-panel {
+  border-right: 1px solid var(--border);
+  background: var(--surface);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
 
-  .control-group { display: flex; flex-direction: column; gap: 0.6rem; }
+.panel-view { display: none; flex: 1; flex-direction: column; overflow: hidden; }
+.panel-view.active { display: flex; }
 
-  .control-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 0.5rem;
-  }
-  .control-row label { font-size: 0.78rem; color: var(--ink-mid); flex: 1; }
+/* Editor */
+#editor-view {
+  display: flex;
+  flex-direction: column;
+}
+#script-editor {
+  flex: 1;
+  width: 100%;
+  padding: 1rem;
+  border: none;
+  outline: none;
+  resize: none;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.76rem;
+  line-height: 1.65;
+  color: var(--ink);
+  background: var(--surface);
+  tab-size: 2;
+}
+#script-editor::placeholder { color: var(--ink-light); font-style: italic; }
 
-  .control-row input[type="number"] {
-    width: 60px;
-    padding: 0.28rem 0.45rem;
-    border: 1px solid var(--border);
-    border-radius: 4px;
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 0.78rem;
-    background: var(--bg);
-    color: var(--ink);
-    text-align: right;
-  }
-  .control-row input[type="number"]:focus { outline: none; border-color: var(--accent); }
+/* Settings */
+#settings-view {
+  overflow-y: auto;
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
 
-  select {
-    width: 100%;
-    padding: 0.35rem 0.55rem;
-    border: 1px solid var(--border);
-    border-radius: 4px;
-    font-family: 'IBM Plex Sans', sans-serif;
-    font-size: 0.78rem;
-    background: var(--bg);
-    color: var(--ink);
-    cursor: pointer;
-  }
-  select:focus { outline: none; border-color: var(--accent); }
+.settings-section {
+  padding: 1rem 0;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+.settings-section:first-child { padding-top: 0; }
+.settings-section:last-child { border-bottom: none; }
 
-  .toggle-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 0.5rem;
-  }
-  .toggle-row label.tog-label { font-size: 0.78rem; color: var(--ink-mid); flex: 1; }
-  .toggle {
-    position: relative;
-    width: 32px;
-    height: 18px;
-    flex-shrink: 0;
-  }
-  .toggle input { opacity: 0; width: 0; height: 0; position: absolute; }
-  .toggle-track {
-    position: absolute;
-    inset: 0;
-    background: var(--border);
-    border-radius: 18px;
-    cursor: pointer;
-    transition: background 0.15s;
-  }
-  .toggle input:checked + .toggle-track { background: var(--accent); }
-  .toggle-track::after {
-    content: '';
-    position: absolute;
-    width: 12px; height: 12px;
-    background: white;
-    border-radius: 50%;
-    top: 3px; left: 3px;
-    transition: transform 0.15s;
-  }
-  .toggle input:checked + .toggle-track::after { transform: translateX(14px); }
+.section-label {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.6rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-light);
+}
 
-  .card-list {
-    flex: 1;
-    overflow-y: auto;
-    display: flex;
-    flex-direction: column;
-    gap: 0.35rem;
-    min-height: 60px;
-  }
-  .card-item {
-    background: var(--bg);
-    border: 1px solid var(--border);
-    border-radius: 4px;
-    padding: 0.45rem 0.55rem;
-    font-size: 0.7rem;
-    color: var(--ink-mid);
-    display: flex;
-    gap: 0.45rem;
-    align-items: flex-start;
-  }
-  .card-item .num {
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 0.62rem;
-    color: var(--accent);
-    flex-shrink: 0;
-    margin-top: 1px;
-  }
-  .card-item .text {
-    overflow: hidden;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-    line-height: 1.4;
-  }
-  .card-item.merged { border-left: 2px solid #b8a070; }
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+.row label {
+  font-size: 0.76rem;
+  color: var(--ink-mid);
+  flex: 1;
+}
 
-  .btn-print {
-    width: 100%;
-    padding: 0.6rem 1rem;
-    background: var(--accent);
-    color: white;
-    border: none;
-    border-radius: 5px;
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 0.78rem;
-    font-weight: 500;
-    cursor: pointer;
-    letter-spacing: 0.03em;
-    transition: opacity 0.15s;
-  }
-  .btn-print:hover { opacity: 0.87; }
-  .btn-print:disabled { opacity: 0.38; cursor: not-allowed; }
+input[type="number"] {
+  width: 58px;
+  padding: 0.3rem 0.4rem;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.76rem;
+  background: var(--bg);
+  color: var(--ink);
+  text-align: right;
+  flex-shrink: 0;
+}
+input[type="number"]:focus { outline: none; border-color: var(--accent); }
+input[type="number"]:disabled { opacity: 0.4; }
 
-  .preview-area {
-    padding: 2rem;
-    overflow-y: auto;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    background: var(--bg);
-  }
+select {
+  padding: 0.3rem 0.45rem;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-family: 'IBM Plex Sans', sans-serif;
+  font-size: 0.76rem;
+  background: var(--bg);
+  color: var(--ink);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+select:focus { outline: none; border-color: var(--accent); }
 
-  .empty-state {
-    margin: auto;
-    text-align: center;
-    color: var(--ink-light);
-  }
-  .empty-state .big { font-size: 2.8rem; margin-bottom: 1rem; opacity: 0.35; }
-  .empty-state p { font-size: 0.82rem; line-height: 1.65; }
+/* Toggle */
+.toggle-wrap { position: relative; width: 30px; height: 17px; flex-shrink: 0; }
+.toggle-wrap input { position: absolute; opacity: 0; width: 0; height: 0; }
+.toggle-track {
+  position: absolute; inset: 0;
+  background: var(--border); border-radius: 17px; cursor: pointer;
+  transition: background 0.15s;
+}
+.toggle-wrap input:checked + .toggle-track { background: var(--accent); }
+.toggle-track::after {
+  content: ''; position: absolute;
+  width: 11px; height: 11px; background: white; border-radius: 50%;
+  top: 3px; left: 3px; transition: transform 0.15s;
+}
+.toggle-wrap input:checked + .toggle-track::after { transform: translateX(13px); }
 
-  .preview-label {
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 0.62rem;
-    letter-spacing: 0.09em;
-    text-transform: uppercase;
-    color: var(--ink-light);
-    margin-bottom: 1rem;
-    align-self: flex-start;
-  }
+/* Slider */
+.slider-wrap { display: flex; flex-direction: column; gap: 0.4rem; }
+.slider-header { display: flex; justify-content: space-between; align-items: baseline; }
+.slider-header label { font-size: 0.76rem; color: var(--ink-mid); }
+.slider-header .val {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.7rem; color: var(--accent); font-weight: 600;
+}
+input[type="range"] {
+  width: 100%; cursor: pointer;
+  -webkit-appearance: none; appearance: none;
+  background: transparent; padding: 5px 0;
+}
+input[type="range"]::-webkit-slider-runnable-track {
+  height: 2px; background: var(--border); border-radius: 1px;
+}
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 13px; height: 13px; border-radius: 50%;
+  background: var(--accent); margin-top: -5.5px; cursor: pointer;
+}
+input[type="range"]::-moz-range-track {
+  height: 2px; background: var(--border); border-radius: 1px;
+}
+input[type="range"]::-moz-range-thumb {
+  width: 13px; height: 13px; border-radius: 50%;
+  background: var(--accent); border: none; cursor: pointer;
+}
+.slider-ends {
+  display: flex; justify-content: space-between;
+  font-size: 0.58rem; color: var(--ink-light);
+  font-family: 'IBM Plex Mono', monospace;
+}
 
-  .page-preview {
-    background: white;
-    box-shadow: 0 2px 14px rgba(0,0,0,0.09);
-    margin-bottom: 1.5rem;
-    flex-shrink: 0;
-  }
+/* Cards list (inside settings) */
+.cards-section {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding-top: 1rem;
+  min-height: 0;
+  overflow: hidden;
+}
+.cards-section-header {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.6rem; font-weight: 600;
+  letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--ink-light); flex-shrink: 0;
+}
+.card-list {
+  flex: 1; overflow-y: auto;
+  display: flex; flex-direction: column; gap: 0.3rem;
+}
+.card-item {
+  background: var(--bg); border: 1px solid var(--border);
+  border-radius: 4px; padding: 0.4rem 0.5rem;
+  font-size: 0.68rem; color: var(--ink-mid);
+  display: flex; gap: 0.4rem; align-items: flex-start;
+  flex-shrink: 0;
+}
+.card-item .num {
+  font-family: 'IBM Plex Mono', monospace; font-size: 0.6rem;
+  color: var(--accent); flex-shrink: 0; margin-top: 1px;
+}
+.card-item .txt {
+  overflow: hidden; display: -webkit-box;
+  -webkit-line-clamp: 2; -webkit-box-orient: vertical; line-height: 1.4;
+}
+.card-item.merged { border-left: 2px solid #c4a060; }
 
-  .slider-row { display: flex; flex-direction: column; gap: 0.3rem; }
-  .slider-row-top { display: flex; align-items: center; justify-content: space-between; }
-  .slider-row-top label { font-size: 0.78rem; color: var(--ink-mid); }
-  .slider-row-top span {
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 0.72rem; color: var(--accent);
-    min-width: 3ch; text-align: right;
-  }
-  .slider-row input[type="range"] {
-    width: 100%;
-    cursor: pointer;
-    -webkit-appearance: none;
-    appearance: none;
-    background: transparent;
-    padding: 4px 0;
-    margin: 2px 0;
-  }
-  .slider-row input[type="range"]::-webkit-slider-runnable-track {
-    height: 3px;
-    background: var(--border);
-    border-radius: 2px;
-  }
-  .slider-row input[type="range"]::-webkit-slider-thumb {
-    -webkit-appearance: none;
-    width: 14px;
-    height: 14px;
-    border-radius: 50%;
-    background: var(--accent);
-    margin-top: -5.5px;
-    cursor: pointer;
-  }
-  .slider-row input[type="range"]::-moz-range-track {
-    height: 3px;
-    background: var(--border);
-    border-radius: 2px;
-  }
-  .slider-row input[type="range"]::-moz-range-thumb {
-    width: 14px;
-    height: 14px;
-    border-radius: 50%;
-    background: var(--accent);
-    border: none;
-    cursor: pointer;
-  }
-  .slider-ends {
-    display: flex; justify-content: space-between;
-    font-size: 0.6rem; color: var(--ink-light);
-    font-family: 'IBM Plex Mono', monospace;
-  }
+/* ── Preview ─────────────────────────────────────────────── */
+.preview-area {
+  overflow-y: auto;
+  padding: 2rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: var(--bg);
+}
+.preview-meta {
+  align-self: flex-start;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.6rem; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--ink-light); margin-bottom: 1.25rem;
+}
+.page-preview {
+  background: white;
+  box-shadow: 0 1px 8px rgba(0,0,0,0.08), 0 4px 20px rgba(0,0,0,0.05);
+  margin-bottom: 1.5rem; flex-shrink: 0;
+}
+.empty-state {
+  margin: auto; text-align: center; color: var(--ink-light);
+}
+.empty-state .glyph { font-size: 2.5rem; margin-bottom: 1rem; opacity: 0.25; display: block; }
+.empty-state p { font-size: 0.8rem; line-height: 1.7; }
 
-  /* Markdown rendered content inside cards */
-  .card-md p { margin: 0 0 0.35em; }
-  .card-md p:last-child { margin-bottom: 0; }
-  .card-md br { display: block; content: ''; margin-top: 0.4em; }
-  .card-md strong { font-weight: 600; }
-  .card-md em { font-style: italic; }
-  .card-md code {
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 0.88em;
-    background: #f0ede6;
-    padding: 0.05em 0.3em;
-    border-radius: 3px;
-  }
-  .card-md blockquote {
-    border-left: 2px solid #c84b2f;
-    margin: 0.2em 0;
-    padding-left: 0.5em;
-    color: #5a5a54;
-    font-style: italic;
-  }
-  .card-md ul, .card-md ol {
-    margin: 0.2em 0 0.35em 1.2em;
-    padding: 0;
-  }
-  .card-md li { margin-bottom: 0.15em; }
-  .card-md h3 { font-size: 1em; font-weight: 700; margin: 0 0 0.3em; letter-spacing: 0.01em; }
-  .card-md h4 { font-size: 0.95em; font-weight: 600; margin: 0 0 0.25em; }
+/* ── Markdown card content ───────────────────────────────── */
+.card-md p { margin: 0 0 0.32em; }
+.card-md p:last-child { margin-bottom: 0; }
+.card-md br { display: block; margin-top: 0.35em; }
+.card-md strong { font-weight: 700; }
+.card-md em { font-style: italic; }
+.card-md code {
+  font-family: 'IBM Plex Mono', monospace; font-size: 0.87em;
+  background: #ede9e0; padding: 0.05em 0.28em; border-radius: 3px;
+}
+.card-md blockquote {
+  border-left: 2px solid var(--accent); margin: 0.2em 0;
+  padding-left: 0.55em; color: var(--ink-mid); font-style: italic;
+}
+.card-md ul, .card-md ol { margin: 0.15em 0 0.32em 1.1em; padding: 0; }
+.card-md li { margin-bottom: 0.12em; }
+.card-md h3 { font-size: 1em; font-weight: 700; margin: 0 0 0.28em; }
+.card-md h4 { font-size: 0.94em; font-weight: 600; margin: 0 0 0.22em; }
 
-  #size-probe {
-    position: fixed;
-    visibility: hidden;
-    pointer-events: none;
-    top: -9999px;
-    left: -9999px;
-    overflow: hidden;
-    word-break: break-word;
-    font-family: 'IBM Plex Sans', sans-serif;
-    line-height: 1.45;
-  }
+/* ── Size probe ─────────────────────────────────────────── */
+#size-probe {
+  position: fixed; top: -9999px; left: -9999px;
+  visibility: hidden; pointer-events: none; overflow: hidden;
+  font-family: 'IBM Plex Sans', sans-serif; line-height: 1.45;
+  word-break: break-word;
+}
 
-  @media print {
-    body { background: white; }
-    header, .sidebar, .preview-label, .empty-state { display: none !important; }
-    .workspace { display: block; }
-    .preview-area { padding: 0; display: block; overflow: visible; background: white; }
-    .page-preview { display: none !important; }
-    #print-pages { display: block !important; }
-    #size-probe { display: none !important; }
-  }
+/* ── Print ───────────────────────────────────────────────── */
+@media print {
+  body { background: white; overflow: visible; }
+  html, body { height: auto; }
+  .app { display: block; height: auto; }
+  .topbar, .left-panel, .preview-meta, .empty-state { display: none !important; }
+  .preview-area { padding: 0; display: block; overflow: visible; background: white; }
+  .page-preview { display: none !important; }
+  #print-pages { display: block !important; }
+  #size-probe { display: none !important; }
+}
 </style>
 </head>
 <body>
+<div class="app">
 
-<header>
-  <h1>Palm Cards Maker</h1>
-  <span>drop .md → print → cut</span>
-</header>
-
-<div class="workspace">
-
-  <!-- Tab bar -->
-  <div class="tab-bar">
-    <button class="tab-btn active" id="tab-write" title="Write" onclick="switchTab('write')">✏️</button>
-    <button class="tab-btn" id="tab-settings" title="Settings" onclick="switchTab('settings')">⚙️</button>
-  </div>
-
-  <!-- Write panel -->
-  <div class="panel active" id="editor-panel">
-    <div class="editor-toolbar">
-      <span>Script</span>
-      <div class="editor-toolbar-right">
-        <button class="toolbar-btn" onclick="loadFileFromEditor()">📂 open file</button>
-        <button class="toolbar-btn" onclick="clearEditor()">clear</button>
-        <button class="toolbar-btn" id="btn-print-editor" disabled onclick="window.print()" style="background:var(--accent);color:white;border-color:var(--accent)">⎙ print</button>
-        <button class="toolbar-btn" id="btn-kindle" disabled onclick="exportKindle()" style="background:#1a1a18;color:white;border-color:#1a1a18">📱 kindle</button>
-      </div>
+  <!-- Topbar -->
+  <div class="topbar">
+    <span class="topbar-title">Palm Cards</span>
+    <div class="tab-group">
+      <button class="tab active" id="tab-write" onclick="switchTab('write')">Write</button>
+      <button class="tab" id="tab-settings" onclick="switchTab('settings')">Settings</button>
     </div>
-    <textarea id="script-editor" spellcheck="true" placeholder="Write your speech here using Markdown...
-
-# Heading becomes a card title
-
-A paragraph of text becomes one card.
-
-Another paragraph becomes the next card.
-
-- Bullet lists work too
-- **bold**, *italic*, `code`
-
-> Blockquotes are styled with a red bar"></textarea>
-    <input type="file" id="file-input" accept=".md,.txt" style="display:none">
+    <div class="topbar-spacer"></div>
+    <div class="topbar-actions">
+      <button class="action-btn" onclick="loadFile()">Open file</button>
+      <button class="action-btn" onclick="clearEditor()">Clear</button>
+      <button class="action-btn primary" id="btn-print" disabled onclick="window.print()">⎙ Print PDF</button>
+      <button class="action-btn dark" id="btn-kindle" disabled onclick="exportKindle()">📱 Kindle</button>
+    </div>
   </div>
 
-  <!-- Settings panel -->
-  <div class="panel" id="settings-panel">
-    <div class="panel-inner">
+  <!-- Left panel -->
+  <div class="left-panel">
 
-      <div class="control-group">
-        <div class="section-label">Card Size</div>
-        <div class="control-row">
+    <!-- Write -->
+    <div class="panel-view active" id="editor-view">
+      <textarea id="script-editor" spellcheck="true" placeholder="Write your speech in Markdown...
+
+# Heading → card title
+
+A paragraph becomes one card.
+
+Another paragraph becomes the next.
+
+- Lists work
+- **bold**, *italic*, \`code\`
+
+> Blockquote with red bar"></textarea>
+      <input type="file" id="file-input" accept=".md,.txt" style="display:none">
+    </div>
+
+    <!-- Settings -->
+    <div class="panel-view" id="settings-view">
+
+      <div class="settings-section">
+        <div class="section-label">Card size</div>
+        <div class="row">
           <label>Width (mm)</label>
           <input type="number" id="card-w" value="90" min="40" max="200">
         </div>
-        <div class="control-row">
+        <div class="row">
           <label>Height (mm)</label>
           <input type="number" id="card-h" value="65" min="30" max="180">
         </div>
       </div>
 
-      <div class="control-group">
-        <div class="section-label">Text</div>
-        <div class="toggle-row">
-          <label class="tog-label">Auto-size font to fit</label>
-          <label class="toggle">
+      <div class="settings-section">
+        <div class="section-label">Typography</div>
+        <div class="row">
+          <label>Auto-size to fit</label>
+          <label class="toggle-wrap">
             <input type="checkbox" id="auto-font" checked>
             <div class="toggle-track"></div>
           </label>
         </div>
-        <div class="control-row" id="font-size-row" style="opacity:0.4">
+        <div class="row" id="font-size-row" style="opacity:0.4">
           <label>Font size (pt)</label>
-          <input type="number" id="font-size" value="10" min="5" max="28" disabled>
+          <input type="number" id="font-size" value="10" min="5" max="48" disabled>
         </div>
-        <div class="slider-row" id="sensitivity-row">
-          <div class="slider-row-top">
-            <label>Fit sensitivity</label>
-            <span id="sensitivity-val">90%</span>
+        <div class="slider-wrap" id="sensitivity-row">
+          <div class="slider-header">
+            <label>Font scale</label>
+            <span class="val" id="sensitivity-val">130%</span>
           </div>
-          <input type="range" id="sensitivity" min="50" max="100" value="90" step="1">
-          <div class="slider-ends"><span>smaller</span><span>fill card</span></div>
+          <input type="range" id="sensitivity" min="50" max="200" value="130" step="5">
+          <div class="slider-ends"><span>smaller</span><span>larger</span></div>
         </div>
-        <div class="control-row">
+        <div class="row">
           <label>Card numbers</label>
           <select id="show-num">
             <option value="1">Show</option>
@@ -515,29 +451,22 @@ Another paragraph becomes the next card.
         </div>
       </div>
 
-      <div class="control-group">
+      <div class="settings-section">
         <div class="section-label">Merging</div>
-        <div class="control-row">
+        <div class="row">
           <label>Merge if under (words)</label>
           <input type="number" id="merge-thresh" value="20" min="0" max="200">
         </div>
-        <div class="control-row">
+        <div class="row">
           <label>Max words after merge</label>
           <input type="number" id="merge-max" value="80" min="10" max="300">
         </div>
       </div>
 
-      <div style="flex:1; min-height:0; display:flex; flex-direction:column;">
-        <div class="section-label">Cards (<span id="card-count">0</span>)</div>
+      <div class="cards-section">
+        <div class="cards-section-header">Cards — <span id="card-count">0</span></div>
         <div class="card-list" id="card-list"></div>
       </div>
-
-      <button class="btn-print" id="btn-print" disabled onclick="window.print()">
-        ⎙ Print / Save PDF
-      </button>
-      <button class="btn-print" id="btn-kindle-settings" disabled onclick="exportKindle()" style="background:#1a1a18; margin-top:-0.5rem">
-        📱 Export for Kindle
-      </button>
 
     </div>
   </div>
@@ -545,8 +474,8 @@ Another paragraph becomes the next card.
   <!-- Preview -->
   <div class="preview-area" id="preview-area">
     <div class="empty-state" id="empty-state">
-      <div class="big">✦</div>
-      <p>Write or paste your script on the left.<br>Your palm cards will appear here.</p>
+      <span class="glyph">✦</span>
+      <p>Write or paste your script on the left.<br>Cards appear here as you type.</p>
     </div>
   </div>
 
@@ -555,12 +484,14 @@ Another paragraph becomes the next card.
 <div id="size-probe"></div>
 
 <script>
+  // ── DOM refs ─────────────────────────────────────────────
   const fileInput    = document.getElementById('file-input');
   const previewArea  = document.getElementById('preview-area');
   const emptyState   = document.getElementById('empty-state');
   const cardList     = document.getElementById('card-list');
-  const cardCount    = document.getElementById('card-count');
+  const cardCountEl  = document.getElementById('card-count');
   const btnPrint     = document.getElementById('btn-print');
+  const btnKindle    = document.getElementById('btn-kindle');
   const autoFontCb   = document.getElementById('auto-font');
   const fontSizeEl   = document.getElementById('font-size');
   const fontSizeRow  = document.getElementById('font-size-row');
@@ -573,54 +504,52 @@ Another paragraph becomes the next card.
   let cards = [];
   let renderTimer = null;
 
-  // ── Tab switching ────────────────────────────────────────────────
+  // ── Tab switching ─────────────────────────────────────────
   function switchTab(name) {
-    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
-    document.getElementById('tab-' + name).classList.add('active');
-    document.getElementById(name === 'write' ? 'editor-panel' : 'settings-panel').classList.add('active');
+    ['write','settings'].forEach(t => {
+      document.getElementById('tab-' + t).classList.toggle('active', t === name);
+    });
+    document.getElementById('editor-view').classList.toggle('active', name === 'write');
+    document.getElementById('settings-view').classList.toggle('active', name === 'settings');
   }
 
-  // ── File open via button ─────────────────────────────────────────
-  function loadFileFromEditor() {
-    fileInput.click();
-  }
+  // ── File handling ─────────────────────────────────────────
+  function loadFile() { fileInput.click(); }
 
-  function clearEditor() {
-    if (scriptEditor.value && !confirm('Clear the script?')) return;
-    scriptEditor.value = '';
-    rawSections = [];
-    cards = [];
-    updateCardList();
-    previewArea.querySelectorAll('.page-preview, .preview-label').forEach(el => el.remove());
-    emptyState.style.display = '';
-    btnPrint.disabled = true;
-    document.getElementById('btn-print-editor').disabled = true;
-    document.getElementById('btn-kindle').disabled = true;
-    document.getElementById('btn-kindle-settings').disabled = true;
-  }
-
-  // ── Event wiring ────────────────────────────────────────────────
   fileInput.addEventListener('change', e => {
     if (e.target.files[0]) readFile(e.target.files[0]);
     fileInput.value = '';
   });
 
-  // Live re-render as user types (debounced)
+  function readFile(file) {
+    const reader = new FileReader();
+    reader.onload = e => { scriptEditor.value = e.target.result; processMarkdown(e.target.result); };
+    reader.readAsText(file);
+  }
+
+  function clearEditor() {
+    if (scriptEditor.value && !confirm('Clear the script?')) return;
+    scriptEditor.value = '';
+    rawSections = []; cards = [];
+    updateCardList();
+    previewArea.querySelectorAll('.page-preview, .preview-meta').forEach(el => el.remove());
+    emptyState.style.display = '';
+    [btnPrint, btnKindle].forEach(b => b.disabled = true);
+  }
+
+  // Live re-render on type (debounced)
   scriptEditor.addEventListener('input', () => {
     clearTimeout(renderTimer);
-    renderTimer = setTimeout(() => {
-      if (scriptEditor.value.trim()) processMarkdown(scriptEditor.value);
-    }, 350);
+    renderTimer = setTimeout(() => { if (scriptEditor.value.trim()) processMarkdown(scriptEditor.value); }, 300);
   });
 
-  // Also support drag-and-drop onto the editor
   scriptEditor.addEventListener('dragover', e => e.preventDefault());
   scriptEditor.addEventListener('drop', e => {
     const f = e.dataTransfer.files[0];
     if (f) { e.preventDefault(); readFile(f); }
   });
 
+  // ── Settings listeners ────────────────────────────────────
   autoFontCb.addEventListener('change', () => {
     const auto = autoFontCb.checked;
     fontSizeEl.disabled = auto;
@@ -636,150 +565,80 @@ Another paragraph becomes the next card.
 
   ['card-w','card-h','font-size','show-num','merge-thresh','merge-max'].forEach(id => {
     document.getElementById(id).addEventListener('input', () => {
-      if (rawSections.length) {
-        cards = mergeCards(rawSections);
-        updateCardList();
-        render();
-      }
+      if (rawSections.length) { cards = mergeCards(rawSections); updateCardList(); render(); }
     });
   });
 
-  // ── File reading ─────────────────────────────────────────────────
-  function readFile(file) {
-    const reader = new FileReader();
-    reader.onload = e => {
-      scriptEditor.value = e.target.result;
-      processMarkdown(e.target.result);
-    };
-    reader.readAsText(file);
-  }
-
-  // ── Parse markdown into raw sections ────────────────────────────
+  // ── Markdown parser ───────────────────────────────────────
   function processMarkdown(raw) {
     const lines = raw.split('\n');
     const sections = [];
     let current = [];
 
     for (const line of lines) {
-      const trimmed = line.trim();
-
-      if (/^#{1,6}\s/.test(trimmed)) {
-        if (current.length > 0) {
-          const t = current.join('\n').trim();
-          if (t) sections.push(t);
-          current = [];
-        }
-        current.push(trimmed); // keep raw heading with # markers
+      const t = line.trim();
+      if (/^#{1,6}\s/.test(t)) {
+        if (current.length) { const s = current.join('\n').trim(); if (s) sections.push(s); current = []; }
+        current.push(t);
         continue;
       }
-
-      if (trimmed === '') {
-        if (current.length > 0) {
-          const t = current.join('\n').trim();
-          if (t) sections.push(t);
-          current = [];
-        }
+      if (t === '') {
+        if (current.length) { const s = current.join('\n').trim(); if (s) sections.push(s); current = []; }
         continue;
       }
-
-      current.push(trimmed);
+      current.push(t);
     }
+    if (current.length) { const s = current.join('\n').trim(); if (s) sections.push(s); }
 
-    if (current.length > 0) {
-      const t = current.join('\n').trim();
-      if (t) sections.push(t);
-    }
-
-    rawSections = sections; // keep raw markdown
+    rawSections = sections;
     cards = mergeCards(rawSections);
     updateCardList();
     render();
-    btnPrint.disabled = false;
-    document.getElementById('btn-print-editor').disabled = false;
-    document.getElementById('btn-kindle').disabled = false;
-    document.getElementById('btn-kindle-settings').disabled = false;
+    [btnPrint, btnKindle].forEach(b => b.disabled = false);
   }
 
-  // ── Merge short paragraphs ───────────────────────────────────────
-  function wordCount(s) {
-    return markdownToPlain(s).trim().split(/\s+/).filter(Boolean).length;
-  }
+  // ── Merge short paragraphs ────────────────────────────────
+  function wordCount(s) { return markdownToPlain(s).trim().split(/\s+/).filter(Boolean).length; }
 
   function mergeCards(sections) {
     const thresh = parseInt(document.getElementById('merge-thresh').value) || 0;
     const maxW   = parseInt(document.getElementById('merge-max').value) || 9999;
-
     const toCard = (raw, merged) => ({ raw, html: markdownToHtml(raw), plain: markdownToPlain(raw), merged });
-
     if (thresh === 0) return sections.map(s => toCard(s, false));
 
-    // Forward pass
     const pass1 = [];
     let i = 0;
     while (i < sections.length) {
       const s = sections[i];
       if (wordCount(s) < thresh && i + 1 < sections.length) {
         const combined = s + '\n\n' + sections[i + 1];
-        if (wordCount(combined) <= maxW) {
-          pass1.push(toCard(combined, true));
-          i += 2;
-          continue;
-        }
+        if (wordCount(combined) <= maxW) { pass1.push(toCard(combined, true)); i += 2; continue; }
       }
-      pass1.push(toCard(s, false));
-      i++;
+      pass1.push(toCard(s, false)); i++;
     }
 
-    // Backward pass
     const out = [];
-    for (let j = 0; j < pass1.length; j++) {
-      const item = pass1[j];
-      if (
-        wordCount(item.raw) < thresh &&
-        out.length > 0 &&
-        wordCount(out[out.length - 1].raw + '\n\n' + item.raw) <= maxW
-      ) {
-        const combined = out[out.length - 1].raw + '\n\n' + item.raw;
-        out[out.length - 1] = toCard(combined, true);
-      } else {
-        out.push(item);
-      }
+    for (const item of pass1) {
+      if (wordCount(item.raw) < thresh && out.length > 0 && wordCount(out[out.length-1].raw + '\n\n' + item.raw) <= maxW) {
+        const combined = out[out.length-1].raw + '\n\n' + item.raw;
+        out[out.length-1] = toCard(combined, true);
+      } else { out.push(item); }
     }
-
     return out;
   }
 
-  // ── Sidebar card list ────────────────────────────────────────────
-  function updateCardList() {
-    cardCount.textContent = cards.length;
-    cardList.innerHTML = '';
-    cards.forEach((c, i) => {
-      const el = document.createElement('div');
-      el.className = 'card-item' + (c.merged ? ' merged' : '');
-      el.innerHTML = `<span class="num">${String(i+1).padStart(2,'0')}</span><span class="text">${escHtml(c.plain)}</span>`;
-      cardList.appendChild(el);
-    });
-  }
+  // ── Markdown → HTML ───────────────────────────────────────
+  function esc(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
-  // ── Markdown → HTML renderer ─────────────────────────────────────
-  function esc(s) {
-    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-  }
-
-  function inlineMarkdown(s) {
+  function inlineMd(s) {
     return esc(s)
-      // bold-italic
       .replace(/\*\*\*(.+?)\*\*\*/g, '<strong><em>$1</em></strong>')
       .replace(/___(.+?)___/g, '<strong><em>$1</em></strong>')
-      // bold
       .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
       .replace(/__(.+?)__/g, '<strong>$1</strong>')
-      // italic
       .replace(/\*(.+?)\*/g, '<em>$1</em>')
       .replace(/_(.+?)_/g, '<em>$1</em>')
-      // inline code
       .replace(/`([^`]+)`/g, '<code>$1</code>')
-      // links — show text only
       .replace(/\[(.+?)\]\(.+?\)/g, '$1');
   }
 
@@ -787,218 +646,158 @@ Another paragraph becomes the next card.
     const lines = raw.split('\n');
     const out = [];
     let inUl = false, inOl = false;
+    const closeList = () => { if (inUl) { out.push('</ul>'); inUl=false; } if (inOl) { out.push('</ol>'); inOl=false; } };
 
-    const closeList = () => {
-      if (inUl) { out.push('</ul>'); inUl = false; }
-      if (inOl) { out.push('</ol>'); inOl = false; }
-    };
-
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i];
-
-      // Blank line
+    for (const line of lines) {
       if (line.trim() === '') {
         closeList();
-        // Only add a paragraph break if there's meaningful content above
-        if (out.length > 0 && out[out.length - 1] !== '<br>') out.push('<br>');
+        if (out.length && out[out.length-1] !== '<br>') out.push('<br>');
         continue;
       }
-
-      // Heading (kept from section splitting — shown as bold)
       if (/^#{1,6}\s/.test(line)) {
         closeList();
-        const level = line.match(/^(#{1,6})\s/)[1].length;
-        const content = inlineMarkdown(line.replace(/^#{1,6}\s+/, ''));
-        const tag = level <= 2 ? 'h3' : 'h4';
-        out.push(`<${tag}>${content}</${tag}>`);
+        const lvl = line.match(/^(#{1,6})\s/)[1].length;
+        out.push(`<${lvl<=2?'h3':'h4'}>${inlineMd(line.replace(/^#{1,6}\s+/,''))}</${lvl<=2?'h3':'h4'}>`);
         continue;
       }
-
-      // Blockquote
-      if (/^>\s?/.test(line)) {
-        closeList();
-        out.push(`<blockquote>${inlineMarkdown(line.replace(/^>\s?/, ''))}</blockquote>`);
-        continue;
-      }
-
-      // Unordered list
-      const ulMatch = line.match(/^[-*+]\s+(.*)/);
-      if (ulMatch) {
-        if (inOl) { out.push('</ol>'); inOl = false; }
-        if (!inUl) { out.push('<ul>'); inUl = true; }
-        out.push(`<li>${inlineMarkdown(ulMatch[1])}</li>`);
-        continue;
-      }
-
-      // Ordered list
-      const olMatch = line.match(/^\d+\.\s+(.*)/);
-      if (olMatch) {
-        if (inUl) { out.push('</ul>'); inUl = false; }
-        if (!inOl) { out.push('<ol>'); inOl = true; }
-        out.push(`<li>${inlineMarkdown(olMatch[1])}</li>`);
-        continue;
-      }
-
-      // Normal paragraph line
+      if (/^>\s?/.test(line)) { closeList(); out.push(`<blockquote>${inlineMd(line.replace(/^>\s?/,''))}</blockquote>`); continue; }
+      const ul = line.match(/^[-*+]\s+(.*)/);
+      if (ul) { if (inOl){out.push('</ol>');inOl=false;} if(!inUl){out.push('<ul>');inUl=true;} out.push(`<li>${inlineMd(ul[1])}</li>`); continue; }
+      const ol = line.match(/^\d+\.\s+(.*)/);
+      if (ol) { if (inUl){out.push('</ul>');inUl=false;} if(!inOl){out.push('<ol>');inOl=true;} out.push(`<li>${inlineMd(ol[1])}</li>`); continue; }
       closeList();
-      out.push(`<p>${inlineMarkdown(line)}</p>`);
+      out.push(`<p>${inlineMd(line)}</p>`);
     }
-
     closeList();
-    // Collapse consecutive <br> tags
-    return out.join('').replace(/(<br>){2,}/g, '<br>');
+    return out.join('').replace(/(<br>){2,}/g,'<br>');
   }
 
-  // Plain text version for word counting and probe sizing
   function markdownToPlain(raw) {
     return raw
-      .replace(/\*\*\*(.+?)\*\*\*/g, '$1')
-      .replace(/\*\*(.+?)\*\*/g, '$1')
-      .replace(/\*(.+?)\*/g, '$1')
-      .replace(/___(.+?)___/g, '$1')
-      .replace(/__(.+?)__/g, '$1')
-      .replace(/_(.+?)_/g, '$1')
-      .replace(/`([^`]+)`/g, '$1')
-      .replace(/\[(.+?)\]\(.+?\)/g, '$1')
-      .replace(/^#{1,6}\s+/gm, '')
-      .replace(/^[-*+]\s+/gm, '• ')
-      .replace(/^\d+\.\s+/gm, '')
-      .replace(/^>\s?/gm, '')
-      .trim();
+      .replace(/\*\*\*(.+?)\*\*\*/g,'$1').replace(/\*\*(.+?)\*\*/g,'$1').replace(/\*(.+?)\*/g,'$1')
+      .replace(/___(.+?)___/g,'$1').replace(/__(.+?)__/g,'$1').replace(/_(.+?)_/g,'$1')
+      .replace(/`([^`]+)`/g,'$1').replace(/\[(.+?)\]\(.+?\)/g,'$1')
+      .replace(/^#{1,6}\s+/gm,'').replace(/^[-*+]\s+/gm,'• ').replace(/^\d+\.\s+/gm,'').replace(/^>\s?/gm,'').trim();
   }
 
-  function escHtml(s) {
-    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  function escHtml(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+  // ── Sidebar card list ─────────────────────────────────────
+  function updateCardList() {
+    cardCountEl.textContent = cards.length;
+    cardList.innerHTML = '';
+    cards.forEach((c, i) => {
+      const el = document.createElement('div');
+      el.className = 'card-item' + (c.merged ? ' merged' : '');
+      el.innerHTML = `<span class="num">${String(i+1).padStart(2,'0')}</span><span class="txt">${escHtml(c.plain)}</span>`;
+      cardList.appendChild(el);
+    });
   }
 
-  // ── Auto font sizing (binary search via off-screen probe) ────────
-  // Probes with actual HTML content; sensitivity (0.5–1.0) scales result down as safety margin
+  // ── Font sizing ───────────────────────────────────────────
+  // sensitivity > 1.0 means we're asking for MORE than what fits — intentionally overflows slightly
   function fitFontSize(html, wPx, hPx, sensitivity) {
-    probe.style.width  = wPx + 'px';
+    probe.style.width = wPx + 'px';
     probe.style.height = 'auto';
     probe.style.lineHeight = '1.45';
     probe.innerHTML = html;
 
-    let lo = 5, hi = 36, best = 5;
-    for (let iter = 0; iter < 16; iter++) {
+    let lo = 5, hi = 48, best = 5;
+    for (let i = 0; i < 18; i++) {
       const mid = (lo + hi) / 2;
       probe.style.fontSize = mid + 'pt';
-      // Force reflow then measure
       const h = probe.getBoundingClientRect().height;
-      if (h <= hPx) {
-        best = mid;
-        lo = mid + 0.25;
-      } else {
-        hi = mid - 0.25;
-      }
-      if (hi - lo < 0.2) break;
+      if (h <= hPx) { best = mid; lo = mid + 0.2; }
+      else { hi = mid - 0.2; }
+      if (hi - lo < 0.15) break;
     }
-    // sensitivity: 1.0 = use best fit, 0.5 = scale result down by 50%
     return Math.max(5, Math.floor(best * sensitivity * 10) / 10);
   }
 
-  // ── Main render ──────────────────────────────────────────────────
+  // ── Main render ───────────────────────────────────────────
   function render() {
-    const cardW    = parseFloat(document.getElementById('card-w').value) || 90;
-    const cardH    = parseFloat(document.getElementById('card-h').value) || 65;
+    const cardW   = parseFloat(document.getElementById('card-w').value) || 90;
+    const cardH   = parseFloat(document.getElementById('card-h').value) || 65;
     const autoFont = autoFontCb.checked;
     const manualPt = parseFloat(fontSizeEl.value) || 10;
     const showNum  = document.getElementById('show-num').value === '1';
+    const sensitivity = parseFloat(sensitivityEl.value) / 100;
 
-    const pageW = 210, pageH = 297, margin = 10, gap = 3;
-    const cols = 2;
-    const rowsPerPage = Math.max(1, Math.floor((pageH - margin * 2 + gap) / (cardH + gap)));
+    const pageW = 210, pageH = 297, margin = 10, gap = 3, cols = 2;
+    const rowsPerPage = Math.max(1, Math.floor((pageH - margin*2 + gap) / (cardH + gap)));
     const cardsPerPage = cols * rowsPerPage;
     const pageCount = Math.ceil(cards.length / cardsPerPage);
 
-    const SCALE = 2.7;        // screen px per mm
-    const PAD_MM = 5;
+    const SCALE = 2.7, PAD_MM = 5;
     const padPx = PAD_MM * SCALE;
 
-    // Compute per-card font sizes
+    // Compute font sizes
     const fontSizes = [];
     if (autoFont) {
-      const sensitivity = parseFloat(sensitivityEl.value) / 100;
-      const numRowPx = showNum ? (10 * 0.65 * SCALE / 3 + 3 * SCALE / 3) : 0;
-      const textWPx = cardW * SCALE - padPx * 2;
-      const textHPx = cardH * SCALE - padPx * 2 - numRowPx;
-      cards.forEach(c => fontSizes.push(fitFontSize(c.html, textWPx, textHPx, sensitivity)));
+      const numRowPx = showNum ? (10 * 0.65 * SCALE/3 + 3 * SCALE/3) : 0;
+      const textW = cardW * SCALE - padPx * 2;
+      const textH = cardH * SCALE - padPx * 2 - numRowPx;
+      cards.forEach(c => fontSizes.push(fitFontSize(c.html, textW, textH, sensitivity)));
     } else {
       cards.forEach(() => fontSizes.push(manualPt));
     }
 
-    // Wipe old preview
-    previewArea.querySelectorAll('.page-preview, .preview-label').forEach(el => el.remove());
+    // Clear preview
+    previewArea.querySelectorAll('.page-preview, .preview-meta').forEach(el => el.remove());
     emptyState.style.display = 'none';
 
-    const label = document.createElement('div');
-    label.className = 'preview-label';
-    label.textContent = `Preview — ${pageCount} page${pageCount !== 1 ? 's' : ''}, ${cards.length} card${cards.length !== 1 ? 's' : ''}`;
-    previewArea.insertBefore(label, previewArea.firstChild);
+    const meta = document.createElement('div');
+    meta.className = 'preview-meta';
+    meta.textContent = `${pageCount} page${pageCount!==1?'s':''} · ${cards.length} card${cards.length!==1?'s':''}`;
+    previewArea.insertBefore(meta, previewArea.firstChild);
 
     for (let p = 0; p < pageCount; p++) {
       const pw = pageW * SCALE, ph = pageH * SCALE;
-
       const page = document.createElement('div');
       page.className = 'page-preview';
-      page.style.cssText = `width:${pw}px; height:${ph}px; position:relative; overflow:hidden;`;
+      page.style.cssText = `width:${pw}px;height:${ph}px;position:relative;overflow:hidden;`;
 
-      // SVG cut guides
+      // Cut guides
       const svg = document.createElementNS('http://www.w3.org/2000/svg','svg');
-      svg.setAttribute('width', pw); svg.setAttribute('height', ph);
+      svg.setAttribute('width',pw); svg.setAttribute('height',ph);
       svg.style.cssText = 'position:absolute;top:0;left:0;pointer-events:none;z-index:1;';
-      for (let r = 0; r < rowsPerPage; r++) {
-        for (let c = 0; c < cols; c++) {
-          const ci = p * cardsPerPage + r * cols + c;
-          if (ci >= cards.length) continue;
-          const x = (margin + c * (cardW + gap)) * SCALE;
-          const y = (margin + r * (cardH + gap)) * SCALE;
-          const rect = document.createElementNS('http://www.w3.org/2000/svg','rect');
-          rect.setAttribute('x', x); rect.setAttribute('y', y);
-          rect.setAttribute('width', cardW * SCALE); rect.setAttribute('height', cardH * SCALE);
-          rect.setAttribute('fill','none'); rect.setAttribute('stroke','#ccc');
-          rect.setAttribute('stroke-width','0.6'); rect.setAttribute('stroke-dasharray','4 3');
-          svg.appendChild(rect);
-        }
+      for (let r = 0; r < rowsPerPage; r++) for (let c = 0; c < cols; c++) {
+        const ci = p*cardsPerPage + r*cols + c;
+        if (ci >= cards.length) continue;
+        const rect = document.createElementNS('http://www.w3.org/2000/svg','rect');
+        rect.setAttribute('x', (margin + c*(cardW+gap)) * SCALE);
+        rect.setAttribute('y', (margin + r*(cardH+gap)) * SCALE);
+        rect.setAttribute('width', cardW*SCALE); rect.setAttribute('height', cardH*SCALE);
+        rect.setAttribute('fill','none'); rect.setAttribute('stroke','#d0ccc0');
+        rect.setAttribute('stroke-width','0.5'); rect.setAttribute('stroke-dasharray','4 3');
+        svg.appendChild(rect);
       }
       page.appendChild(svg);
 
-      // Card divs
-      for (let r = 0; r < rowsPerPage; r++) {
-        for (let c = 0; c < cols; c++) {
-          const idx = r * cols + c;
-          const ci  = p * cardsPerPage + idx;
-          if (ci >= cards.length) continue;
+      // Cards
+      for (let r = 0; r < rowsPerPage; r++) for (let c = 0; c < cols; c++) {
+        const idx = r*cols + c, ci = p*cardsPerPage + idx;
+        if (ci >= cards.length) continue;
+        const x = (margin + c*(cardW+gap)) * SCALE;
+        const y = (margin + r*(cardH+gap)) * SCALE;
+        const fsPx = fontSizes[ci] * SCALE / 3;
 
-          const x    = (margin + c * (cardW + gap)) * SCALE;
-          const y    = (margin + r * (cardH + gap)) * SCALE;
-          const fsPx = fontSizes[ci] * SCALE / 3;
+        const card = document.createElement('div');
+        card.style.cssText = `position:absolute;left:${x}px;top:${y}px;width:${cardW*SCALE}px;height:${cardH*SCALE}px;background:white;padding:${padPx}px;overflow:hidden;display:flex;flex-direction:column;`;
 
-          const card = document.createElement('div');
-          card.style.cssText = `
-            position:absolute; left:${x}px; top:${y}px;
-            width:${cardW*SCALE}px; height:${cardH*SCALE}px;
-            background:white; padding:${padPx}px;
-            overflow:hidden; display:flex; flex-direction:column;
-          `;
-
-          if (showNum) {
-            const num = document.createElement('div');
-            num.style.cssText = `font-family:'IBM Plex Mono',monospace; font-size:${fsPx*0.65}px;
-              color:#c84b2f; margin-bottom:${2*SCALE/3}px; flex-shrink:0; letter-spacing:0.05em;`;
-            num.textContent = String(ci + 1).padStart(2, '0');
-            card.appendChild(num);
-          }
-
-          const text = document.createElement('div');
-          text.className = 'card-md';
-          text.style.cssText = `font-family:'IBM Plex Sans',sans-serif; font-size:${fsPx}px;
-            line-height:1.45; color:#1a1a18; overflow:hidden; flex:1;
-            word-break:break-word;`;
-          text.innerHTML = cards[ci].html;
-          card.appendChild(text);
-          page.appendChild(card);
+        if (showNum) {
+          const num = document.createElement('div');
+          num.style.cssText = `font-family:'IBM Plex Mono',monospace;font-size:${fsPx*0.62}px;color:#c84b2f;margin-bottom:${2*SCALE/3}px;flex-shrink:0;letter-spacing:0.05em;`;
+          num.textContent = String(ci+1).padStart(2,'0');
+          card.appendChild(num);
         }
+
+        const text = document.createElement('div');
+        text.className = 'card-md';
+        text.style.cssText = `font-family:'IBM Plex Sans',sans-serif;font-size:${fsPx}px;line-height:1.45;color:#1a1a18;overflow:hidden;flex:1;word-break:break-word;`;
+        text.innerHTML = cards[ci].html;
+        card.appendChild(text);
+        page.appendChild(card);
       }
 
       previewArea.appendChild(page);
@@ -1007,190 +806,127 @@ Another paragraph becomes the next card.
     buildPrintDOM(cardW, cardH, fontSizes, showNum, cols, rowsPerPage, margin, gap, pageCount, cardsPerPage);
   }
 
-  // ── Build hidden print DOM (mm-based, no scaling) ────────────────
+  // ── Print DOM ─────────────────────────────────────────────
   function buildPrintDOM(cardW, cardH, fontSizes, showNum, cols, rowsPerPage, margin, gap, pageCount, cardsPerPage) {
-    let printPages = document.getElementById('print-pages');
-    if (printPages) printPages.remove();
-    printPages = document.createElement('div');
-    printPages.id = 'print-pages';
-    printPages.style.display = 'none';
-    document.body.appendChild(printPages);
+    let pp = document.getElementById('print-pages');
+    if (pp) pp.remove();
+    pp = document.createElement('div');
+    pp.id = 'print-pages'; pp.style.display = 'none';
+    document.body.appendChild(pp);
 
     for (let p = 0; p < pageCount; p++) {
       const pageDiv = document.createElement('div');
       pageDiv.className = 'print-page';
-
-      for (let r = 0; r < rowsPerPage; r++) {
-        for (let c = 0; c < cols; c++) {
-          const idx = r * cols + c;
-          const ci  = p * cardsPerPage + idx;
-          if (ci >= cards.length) continue;
-
-          const x = margin + c * (cardW + gap);
-          const y = margin + r * (cardH + gap);
-
-          const card = document.createElement('div');
-          card.className = 'print-card';
-          card.style.cssText = `left:${x}mm; top:${y}mm; width:${cardW}mm; height:${cardH}mm; font-size:${fontSizes[ci]}pt;`;
-
-          if (showNum) {
-            const num = document.createElement('div');
-            num.className = 'print-card-num';
-            num.textContent = String(ci + 1).padStart(2, '0');
-            card.appendChild(num);
-          }
-
-          const text = document.createElement('div');
-          text.className = 'print-card-text card-md';
-          text.innerHTML = cards[ci].html;
-          card.appendChild(text);
-
-          pageDiv.appendChild(card);
+      for (let r = 0; r < rowsPerPage; r++) for (let c = 0; c < cols; c++) {
+        const ci = p*cardsPerPage + r*cols + c;
+        if (ci >= cards.length) continue;
+        const card = document.createElement('div');
+        card.className = 'print-card';
+        card.style.cssText = `left:${margin+c*(cardW+gap)}mm;top:${margin+r*(cardH+gap)}mm;width:${cardW}mm;height:${cardH}mm;font-size:${fontSizes[ci]}pt;`;
+        if (showNum) {
+          const num = document.createElement('div');
+          num.className = 'print-card-num';
+          num.textContent = String(ci+1).padStart(2,'0');
+          card.appendChild(num);
         }
+        const text = document.createElement('div');
+        text.className = 'print-card-text card-md';
+        text.innerHTML = cards[ci].html;
+        card.appendChild(text);
+        pageDiv.appendChild(card);
       }
-      printPages.appendChild(pageDiv);
+      pp.appendChild(pageDiv);
     }
 
-    // Dynamic print CSS
     let styleEl = document.getElementById('dynamic-print-css');
-    if (!styleEl) {
-      styleEl = document.createElement('style');
-      styleEl.id = 'dynamic-print-css';
-      document.head.appendChild(styleEl);
-    }
+    if (!styleEl) { styleEl = document.createElement('style'); styleEl.id = 'dynamic-print-css'; document.head.appendChild(styleEl); }
     styleEl.textContent = `
       @media print {
         @page { size: A4; margin: 0; }
         #print-pages { display: block !important; }
-        .print-page {
-          display: block; width: 210mm; height: 297mm;
-          position: relative; overflow: hidden;
-          background: white; page-break-after: always;
-        }
-        .print-page:last-child { page-break-after: avoid; }
-        .print-card {
-          position: absolute; background: white; padding: 5mm;
-          overflow: hidden; box-sizing: border-box;
-          border: 0.25mm dashed #aaa;
-          display: flex; flex-direction: column;
-        }
-        .print-card-num {
-          font-family: 'IBM Plex Mono', monospace; font-size: 0.65em;
-          color: #c84b2f; margin-bottom: 1.5mm; flex-shrink: 0; letter-spacing: 0.05em;
-        }
-        .print-card-text {
-          font-family: 'IBM Plex Sans', sans-serif; line-height: 1.45;
-          color: #111; overflow: hidden; flex: 1;
-          word-break: break-word;
-        }
-        .card-md p { margin: 0 0 0.35em; }
-        .card-md p:last-child { margin-bottom: 0; }
-        .card-md strong { font-weight: 700; }
-        .card-md em { font-style: italic; }
-        .card-md code {
-          font-family: 'IBM Plex Mono', monospace; font-size: 0.88em;
-          background: #f0ede6; padding: 0.05em 0.25em; border-radius: 2px;
-        }
-        .card-md blockquote {
-          border-left: 0.5mm solid #c84b2f; margin: 0.2em 0;
-          padding-left: 1.5mm; color: #444; font-style: italic;
-        }
-        .card-md ul, .card-md ol { margin: 0.2em 0 0.35em 4mm; padding: 0; }
-        .card-md li { margin-bottom: 0.15em; }
-        .card-md h3 { font-size: 1em; font-weight: 700; margin: 0 0 0.3em; }
-        .card-md h4 { font-size: 0.95em; font-weight: 600; margin: 0 0 0.25em; }
-        .card-md br { display: block; content: ''; margin-top: 0.4em; }
+        .print-page { display:block;width:210mm;height:297mm;position:relative;overflow:hidden;background:white;page-break-after:always; }
+        .print-page:last-child { page-break-after:avoid; }
+        .print-card { position:absolute;background:white;padding:5mm;overflow:hidden;box-sizing:border-box;border:0.25mm dashed #bbb;display:flex;flex-direction:column; }
+        .print-card-num { font-family:'IBM Plex Mono',monospace;font-size:0.62em;color:#c84b2f;margin-bottom:1.5mm;flex-shrink:0;letter-spacing:0.05em; }
+        .print-card-text { font-family:'IBM Plex Sans',sans-serif;line-height:1.45;color:#111;overflow:hidden;flex:1;word-break:break-word; }
+        .card-md p{margin:0 0 0.32em;} .card-md p:last-child{margin-bottom:0;}
+        .card-md strong{font-weight:700;} .card-md em{font-style:italic;}
+        .card-md code{font-family:'IBM Plex Mono',monospace;font-size:0.87em;background:#ede9e0;padding:0.05em 0.28em;border-radius:3px;}
+        .card-md blockquote{border-left:0.5mm solid #c84b2f;margin:0.2em 0;padding-left:1.5mm;color:#555;font-style:italic;}
+        .card-md ul,.card-md ol{margin:0.15em 0 0.32em 4mm;padding:0;} .card-md li{margin-bottom:0.12em;}
+        .card-md h3{font-size:1em;font-weight:700;margin:0 0 0.28em;} .card-md h4{font-size:0.94em;font-weight:600;margin:0 0 0.22em;}
+        .card-md br{display:block;margin-top:0.35em;}
       }
     `;
   }
 
-  // ── Kindle export ────────────────────────────────────────────────
-  // Paperwhite 10 landscape: 1448 × 1072 px
-  const KW = 1448, KH = 1072, K_PAD = 64;
+  // ── Kindle export ─────────────────────────────────────────
+  const KW = 1448, KH = 1072, K_PAD = 72;
 
   async function exportKindle() {
     if (!cards.length) return;
+    const orig = btnKindle.textContent;
+    btnKindle.disabled = true;
 
-    const btns = [document.getElementById('btn-kindle'), document.getElementById('btn-kindle-settings')];
-    btns.forEach(b => { b.disabled = true; });
-
-    const showNum  = document.getElementById('show-num').value === '1';
-    const autoFont = autoFontCb.checked;
-    const manualPt = parseFloat(fontSizeEl.value) || 10;
+    const showNum   = document.getElementById('show-num').value === '1';
+    const autoFont  = autoFontCb.checked;
+    const manualPt  = parseFloat(fontSizeEl.value) || 10;
     const sensitivity = parseFloat(sensitivityEl.value) / 100;
 
-    // Off-screen render container
     const container = document.createElement('div');
     container.style.cssText = `position:fixed;top:-9999px;left:-9999px;width:${KW}px;height:${KH}px;background:white;overflow:hidden;`;
     document.body.appendChild(container);
 
     const { jsPDF } = window.jspdf;
-    // jsPDF in px mode: 1px = 1 unit
-    const pdf = new jsPDF({ orientation: 'landscape', unit: 'px', format: [KW, KH], compress: true });
+    const pdf = new jsPDF({ orientation:'landscape', unit:'px', format:[KW,KH], compress:true });
     let first = true;
 
     for (let ci = 0; ci < cards.length; ci++) {
-      btns.forEach(b => { b.textContent = `⏳ ${ci + 1} / ${cards.length}`; });
-      await new Promise(r => setTimeout(r, 0)); // yield so the label updates
+      btnKindle.textContent = `${ci+1} / ${cards.length}`;
+      await new Promise(r => setTimeout(r, 0));
 
-      // Font size: run the probe at Kindle scale
-      let fsPx;
-      const numRowPx = showNum ? 40 : 0;
+      const numRowPx = showNum ? 44 : 0;
       const availW = KW - K_PAD * 2;
       const availH = KH - K_PAD * 2 - numRowPx;
-      if (autoFont) {
-        const fitPt = fitFontSize(cards[ci].html, availW * sensitivity, availH * sensitivity, 1.0);
-        // fitFontSize returns pt; convert to px (96 dpi screen)
-        fsPx = fitPt * (4 / 3);
-      } else {
-        fsPx = manualPt * (4 / 3) * (availW / (90 * 2.7 - K_PAD * 2));
-      }
-      fsPx = Math.max(20, Math.min(fsPx, 140));
 
-      // Build card
+      let fsPx;
+      if (autoFont) {
+        const fitPt = fitFontSize(cards[ci].html, availW, availH, sensitivity);
+        fsPx = fitPt * (4/3);
+      } else {
+        fsPx = manualPt * (4/3) * 3.5;
+      }
+      fsPx = Math.max(24, Math.min(fsPx, 160));
+
       container.innerHTML = '';
       const card = document.createElement('div');
-      card.style.cssText = `
-        width:${KW}px; height:${KH}px; background:white;
-        padding:${K_PAD}px; box-sizing:border-box;
-        display:flex; flex-direction:column;
-        font-family:'IBM Plex Sans',sans-serif;
-      `;
+      card.style.cssText = `width:${KW}px;height:${KH}px;background:white;padding:${K_PAD}px;box-sizing:border-box;display:flex;flex-direction:column;font-family:'IBM Plex Sans',sans-serif;`;
 
       if (showNum) {
         const num = document.createElement('div');
-        num.style.cssText = `
-          font-family:'IBM Plex Mono',monospace;
-          font-size:${Math.round(fsPx * 0.6)}px;
-          color:#c84b2f; margin-bottom:12px; flex-shrink:0; letter-spacing:0.05em;
-        `;
-        num.textContent = String(ci + 1).padStart(2, '0');
+        num.style.cssText = `font-family:'IBM Plex Mono',monospace;font-size:${Math.round(fsPx*0.58)}px;color:#c84b2f;margin-bottom:14px;flex-shrink:0;letter-spacing:0.05em;`;
+        num.textContent = String(ci+1).padStart(2,'0');
         card.appendChild(num);
       }
 
       const textDiv = document.createElement('div');
       textDiv.className = 'card-md';
-      textDiv.style.cssText = `font-size:${fsPx}px; line-height:1.45; color:#111; overflow:hidden; flex:1; word-break:break-word;`;
+      textDiv.style.cssText = `font-size:${fsPx}px;line-height:1.45;color:#111;overflow:hidden;flex:1;word-break:break-word;`;
       textDiv.innerHTML = cards[ci].html;
       card.appendChild(textDiv);
       container.appendChild(card);
 
       await document.fonts.ready;
-
-      const canvas = await html2canvas(container, {
-        width: KW, height: KH, scale: 1,
-        useCORS: true, backgroundColor: '#ffffff', logging: false,
-      });
-
-      if (!first) pdf.addPage([KW, KH], 'landscape');
+      const canvas = await html2canvas(container, { width:KW, height:KH, scale:1, useCORS:true, backgroundColor:'#ffffff', logging:false });
+      if (!first) pdf.addPage([KW,KH],'landscape');
       pdf.addImage(canvas.toDataURL('image/jpeg', 0.93), 'JPEG', 0, 0, KW, KH);
       first = false;
     }
 
     document.body.removeChild(container);
     pdf.save('palm-cards-kindle.pdf');
-
-    btns.forEach(b => { b.disabled = false; b.textContent = b.id === 'btn-kindle' ? '📱 kindle' : '📱 Export for Kindle'; });
+    btnKindle.textContent = orig;
+    btnKindle.disabled = false;
   }
 </script>
 </body>
